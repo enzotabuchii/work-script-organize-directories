@@ -22,21 +22,22 @@ def db_connection():
     )
     return pyodbc.connect(conn_str)
 
-def oid_fromm_db(file_name: str, cursor) -> tuple[str | None, str | None]:
-    """Get oid and url_bucket from database of reg_documents based on pk_id in reg_document_contents"""
+def load_all_db_relations(cursor) -> list:
+    """Load all relevant relations from DB into memory for fast lookup to avoid N+1 queries."""
     query = """
       SELECT d.fk_reg_persons_oid, c.url_bucket
       FROM reg_document_contents c
       INNER JOIN reg_documents d ON c.fk_reg_documents_id = d.pk_id
-      WHERE c.url_bucket LIKE ?
+      WHERE c.url_bucket IS NOT NULL
     """
+    cursor.execute(query)
+    return [(str(row[0]) if row[0] else None, str(row[1])) for row in cursor.fetchall() if row[1]]
 
-    cursor.execute(query, f"%{file_name}%")
-
-    result = cursor.fetchone()
-    if result:
-        return str(result[0]), str(result[1])
-
+def get_oid_from_memory(file_name: str, db_relations: list) -> tuple[str | None, str | None]:
+    """Find oid and url_bucket in memory based on file_name matching part of the url_bucket."""
+    for oid, url in db_relations:
+        if file_name in url:
+            return oid, url
     return None, None
 
 def main():
@@ -57,6 +58,10 @@ def main():
     cursor = conn.cursor()
     print("Database connection successfully!\n")
 
+    print("Loading database relations into memory... This may take a few seconds.")
+    db_relations = load_all_db_relations(cursor)
+    print(f"Loaded {len(db_relations)} relations from database.\n")
+
     blobs = list(bucket.list_blobs(prefix=prefix))
 
     if not prefix.endswith('/'):
@@ -71,7 +76,6 @@ def main():
         if '/' not in relative_path:
             loose_files.append(blob)
 
-    # Sort files by creation date in descending order (newest first)
     loose_files.sort(key=lambda b: b.time_created, reverse=True)
 
     if not loose_files:
@@ -82,10 +86,10 @@ def main():
     for blob in loose_files:
         file_name_with_ext = os.path.basename(blob.name)
 
-        fk_reg_persons_oid, db_url_bucket = oid_fromm_db(file_name_with_ext, cursor)
+        fk_reg_persons_oid, db_url_bucket = get_oid_from_memory(file_name_with_ext, db_relations)
 
         if not fk_reg_persons_oid:
-            # print(f"[SKIPPED] Could not find relationship in the database for the file: {blob.name}")
+            print(f"[SKIPPED] Could not find relationship in the database for the file: {blob.name}")
             continue
 
         file_name, file_ext = os.path.splitext(file_name_with_ext)
