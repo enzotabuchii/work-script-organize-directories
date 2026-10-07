@@ -1,5 +1,5 @@
 import os
-import uuid
+import secrets
 import pyodbc
 from dotenv import load_dotenv
 from google.cloud import storage
@@ -102,7 +102,7 @@ def main():
                 continue
 
             file_name, file_ext = os.path.splitext(file_name_with_ext)
-            new_uuid = str(uuid.uuid4())
+            new_uuid = secrets.token_hex(5)
             new_file_name = f"{file_name}_{new_uuid}{file_ext}"
             final_destination_name = f"{prefix}{fk_reg_persons_oid}/{new_file_name}"
 
