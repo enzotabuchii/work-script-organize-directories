@@ -1,6 +1,6 @@
 # Organização de Documentos GCP (Dry-Run)
 
-Este script tem como objetivo organizar arquivos "soltos" em um bucket do Google Cloud Storage, simulando a movimentação desses arquivos para pastas específicas baseadas no OID (Object Identifier) do usuário, consultando um banco de dados SQL Server. 
+Este script tem como objetivo organizar arquivos "soltos" em um bucket do Google Cloud Storage, simulando a movimentação desses arquivos para pastas específicas baseadas no OID (Object Identifier) do usuário, consultando um banco de dados SQL Server.
 
 Por enquanto, o script roda apenas em modo **DRY-RUN**, ou seja, ele apenas imprime na tela o que faria, mas não move ou altera nenhum arquivo de verdade.
 
@@ -35,9 +35,11 @@ DB_SERVER=endereco_do_servidor_sql
 DB_DATABASE=nome_do_banco
 DB_USERNAME=usuario_do_banco
 DB_PASSWORD=senha_do_banco
+
+DRY_RUN=True # TRUE para quando quiser simular
 ```
 
-*Também é necessário ter as credenciais do GCP configuradas no seu ambiente (por exemplo, exportando a variável `GOOGLE_APPLICATION_CREDENTIALS` apontando para o seu arquivo `.json` de chave de serviço, ou estando autenticado localmente usando a gcloud cli).*
+_Também é necessário ter as credenciais do GCP configuradas no seu ambiente (por exemplo, exportando a variável `GOOGLE_APPLICATION_CREDENTIALS` apontando para o seu arquivo `.json` de chave de serviço, ou estando autenticado localmente usando a gcloud cli)._
 
 ## Como Executar
 
