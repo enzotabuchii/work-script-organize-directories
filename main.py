@@ -45,7 +45,7 @@ def main():
     bucket_name = os.getenv("GCP_BUCKET_NAME")
     prefix = os.getenv("GCP_PREFIX", "profile-documents/")
 
-    print(f"\nStarting organization on GCP (DRY-RUN ONLY)...")
+    print(f"\nStarting organization...")
     print(f"Bucket: {bucket_name} | Target prefix: {prefix}")
 
     project_id = os.getenv("GCP_PROJECT_ID")
@@ -58,7 +58,7 @@ def main():
     cursor = conn.cursor()
     print("DB connection successfully!\n")
 
-    print("Loading database relations into memory... This may take a few seconds.")
+    print("Loading database relations into memory...")
     db_relations = load_all_db_relations(cursor)
     print(f"Loaded {len(db_relations)} relations from database.\n")
 
@@ -87,9 +87,9 @@ def main():
     DRY_RUN = os.getenv("DRY_RUN", "True").lower() in ("true", "1", "t", "yes")
 
     if DRY_RUN:
-        print("MODO DRY-RUN")
+        print("DRY-RUN MODE")
     else:
-        print("MODO EXECUÇÃO")
+        print("EXECUTION MODE")
 
     try:
         for blob in loose_files:
@@ -125,22 +125,22 @@ def main():
                 print(f"         [OK] Success.\n")
 
         if not DRY_RUN:
-            print("Execução finalizada com sucesso. (Commit no banco de dados realizado)")
+            print("Execution successfully completed.")
         else:
-            print("Organization (Dry-Run) completed!")
+            print("Organization completed!")
 
     except Exception as e:
-        print(f"\nOcorreu um erro durante a execução: {e}")
+        print(f"\nAn error occurred during execution: {e}")
         if not DRY_RUN and moved_blobs:
-            print("Iniciando reversão dos arquivos movidos no GCP...")
+            print("Initiating rollback of moved files in GCP...")
             for new_blob, original_name in reversed(moved_blobs):
                 try:
-                    print(f"  - Desfazendo: {new_blob.name} -> {original_name}")
+                    print(f"  - Undoing: {new_blob.name} -> {original_name}")
                     bucket.rename_blob(new_blob, original_name)
                 except Exception as rollback_err:
-                    print(f"  Falha ao reverter {new_blob.name}: {rollback_err}")
+                    print(f"  Failed to rollback {new_blob.name}: {rollback_err}")
 
-            print("Reversão concluída. As operações no banco foram canceladas.")
+            print("Rollback completed. Database operations were cancelled.")
 
     finally:
         conn.close()
