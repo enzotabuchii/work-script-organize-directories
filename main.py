@@ -102,8 +102,8 @@ def main():
                 continue
 
             file_name, file_ext = os.path.splitext(file_name_with_ext)
-            new_uuid = secrets.token_hex(5)
-            new_file_name = f"{file_name}_{new_uuid}{file_ext}"
+            randomBytes = secrets.token_hex(5)
+            new_file_name = f"{file_name}_{randomBytes}{file_ext}"
             final_destination_name = f"{prefix}{fk_reg_persons_oid}/{new_file_name}"
 
             if db_url_bucket and final_destination_name not in db_url_bucket:
