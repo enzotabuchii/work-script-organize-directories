@@ -113,32 +113,37 @@ def main():
                 print(f"[SIMULATION] Move: {blob.name}")
                 print(f"            -> To: {final_destination_name}\n")
             else:
-                # print(f"[UPDATING] Moving: {blob.name}")
-                # print(f"         -> To: {final_destination_name}")
+                print(f"[UPDATING] Moving: {blob.name}")
+                print(f"         -> To: {final_destination_name}")
 
-                # new_blob = bucket.rename_blob(blob, final_destination_name)
+                new_blob = bucket.rename_blob(blob, final_destination_name)
+                moved_blobs.append((new_blob, blob.name))
 
-                # moved_blobs.append((new_blob, blob.name))
-
-                # cursor.execute("UPDATE ... SET url_bucket = ? WHERE ...", new_url_bucket)
+                new_url_bucket = db_url_bucket.replace(blob.name, final_destination_name)
+                cursor.execute("UPDATE reg_document_contents SET url_bucket = ? WHERE url_bucket = ?", (new_url_bucket, db_url_bucket))
 
                 print(f"         [OK] Success.\n")
 
         if not DRY_RUN:
-            print("Execution successfully completed.")
+            conn.commit()
+            print("Execution successfully completed. (Database commit performed)")
         else:
             print("Organization completed!")
 
     except Exception as e:
         print(f"\nAn error occurred during execution: {e}")
-        if not DRY_RUN and moved_blobs:
-            print("Initiating rollback of moved files in GCP...")
-            for new_blob, original_name in reversed(moved_blobs):
-                try:
-                    print(f"  - Undoing: {new_blob.name} -> {original_name}")
-                    bucket.rename_blob(new_blob, original_name)
-                except Exception as rollback_err:
-                    print(f"  Failed to rollback {new_blob.name}: {rollback_err}")
+        if not DRY_RUN:
+            # Rollback any pending database changes
+            conn.rollback()
+
+            if moved_blobs:
+                print("Initiating rollback of moved files in GCP...")
+                for new_blob, original_name in reversed(moved_blobs):
+                    try:
+                        print(f"  - Undoing: {new_blob.name} -> {original_name}")
+                        bucket.rename_blob(new_blob, original_name)
+                    except Exception as rollback_err:
+                        print(f"  Failed to rollback {new_blob.name}: {rollback_err}")
 
             print("Rollback completed. Database operations were cancelled.")
 
