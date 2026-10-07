@@ -22,10 +22,10 @@ def db_connection():
     )
     return pyodbc.connect(conn_str)
 
-def oid_fromm_db(file_name: str, cursor) -> str | None:
-    """Get oid from database of reg_documents based on pk_id in reg_document_contents"""
+def oid_fromm_db(file_name: str, cursor) -> tuple[str | None, str | None]:
+    """Get oid and url_bucket from database of reg_documents based on pk_id in reg_document_contents"""
     query = """
-      SELECT d.fk_reg_persons_oid
+      SELECT d.fk_reg_persons_oid, c.url_bucket
       FROM reg_document_contents c
       INNER JOIN reg_documents d ON c.fk_reg_documents_id = d.pk_id
       WHERE c.url_bucket LIKE ?
@@ -35,9 +35,9 @@ def oid_fromm_db(file_name: str, cursor) -> str | None:
 
     result = cursor.fetchone()
     if result:
-        return str(result[0])
+        return str(result[0]), str(result[1])
 
-    return None
+    return None, None
 
 def main():
     """Testing using DRY RUN"""
@@ -71,6 +71,9 @@ def main():
         if '/' not in relative_path:
             loose_files.append(blob)
 
+    # Sort files by creation date in descending order (newest first)
+    loose_files.sort(key=lambda b: b.time_created, reverse=True)
+
     if not loose_files:
         print("No loose files found to organize in this prefix.")
         conn.close()
@@ -79,10 +82,10 @@ def main():
     for blob in loose_files:
         file_name_with_ext = os.path.basename(blob.name)
 
-        fk_reg_persons_oid = oid_fromm_db(file_name_with_ext, cursor)
+        fk_reg_persons_oid, db_url_bucket = oid_fromm_db(file_name_with_ext, cursor)
 
         if not fk_reg_persons_oid:
-            print(f"[SKIPPED] Could not find relationship in the database for the file: {blob.name}")
+            # print(f"[SKIPPED] Could not find relationship in the database for the file: {blob.name}")
             continue
 
         file_name, file_ext = os.path.splitext(file_name_with_ext)
@@ -91,6 +94,9 @@ def main():
 
         new_file_name = f"{file_name}_{new_uuid}{file_ext}"
         final_destination_name = f"{prefix}{fk_reg_persons_oid}/{new_file_name}"
+
+        if db_url_bucket and final_destination_name not in db_url_bucket:
+             print(f"[DB ERROR] The NEW url ({final_destination_name}) is different from the one in the database: {db_url_bucket}")
 
         print(f"[SIMULATION] Move: {blob.name}")
         print(f"            -> To: {final_destination_name}\n")
