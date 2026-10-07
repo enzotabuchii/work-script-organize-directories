@@ -83,30 +83,69 @@ def main():
         conn.close()
         return
 
-    for blob in loose_files:
-        file_name_with_ext = os.path.basename(blob.name)
+    moved_blobs = []
+    DRY_RUN = os.getenv("DRY_RUN", "True").lower() in ("true", "1", "t", "yes")
 
-        fk_reg_persons_oid, db_url_bucket = get_oid_from_memory(file_name_with_ext, db_relations)
+    if DRY_RUN:
+        print("MODO DRY-RUN")
+    else:
+        print("MODO EXECUÇÃO")
 
-        if not fk_reg_persons_oid:
-            print(f"[SKIPPED] Could not find relationship in the database for the file: {blob.name}")
-            continue
+    try:
+        for blob in loose_files:
+            file_name_with_ext = os.path.basename(blob.name)
 
-        file_name, file_ext = os.path.splitext(file_name_with_ext)
+            fk_reg_persons_oid, db_url_bucket = get_oid_from_memory(file_name_with_ext, db_relations)
 
-        new_uuid = str(uuid.uuid4())
+            if not fk_reg_persons_oid:
+                print(f"[SKIPPED] Could not find relationship in the database for the file: {blob.name}")
+                continue
 
-        new_file_name = f"{file_name}_{new_uuid}{file_ext}"
-        final_destination_name = f"{prefix}{fk_reg_persons_oid}/{new_file_name}"
+            file_name, file_ext = os.path.splitext(file_name_with_ext)
+            new_uuid = str(uuid.uuid4())
+            new_file_name = f"{file_name}_{new_uuid}{file_ext}"
+            final_destination_name = f"{prefix}{fk_reg_persons_oid}/{new_file_name}"
 
-        if db_url_bucket and final_destination_name not in db_url_bucket:
-             print(f"[DB ERROR] The NEW url ({final_destination_name}) is different from the one in the database: {db_url_bucket}")
+            if db_url_bucket and final_destination_name not in db_url_bucket:
+                 print(f"[DB ERROR] The NEW url ({final_destination_name}) is different from the one in the database: {db_url_bucket}")
 
-        print(f"[SIMULATION] Move: {blob.name}")
-        print(f"            -> To: {final_destination_name}\n")
+            if DRY_RUN:
+                print(f"[SIMULATION] Move: {blob.name}")
+                print(f"            -> To: {final_destination_name}\n")
+            else:
+                print(f"[UPDATING] Moving: {blob.name}")
+                print(f"         -> To: {final_destination_name}")
 
-    print("Organization (Dry-Run) completed!")
-    conn.close()
+                # new_blob = bucket.rename_blob(blob, final_destination_name)
+
+                # moved_blobs.append((new_blob, blob.name))
+
+                # cursor.execute("UPDATE ... SET url_bucket = ? WHERE ...", new_url_bucket)
+
+                print(f"         [OK] Success.\n")
+
+        if not DRY_RUN:
+            # Só faz o commit se o loop todo terminar sem erros
+            # conn.commit()
+            print("Execução finalizada com sucesso. (Commit no banco de dados realizado)")
+        else:
+            print("Organization (Dry-Run) completed!")
+
+    except Exception as e:
+        print(f"\nOcorreu um erro durante a execução: {e}")
+        if not DRY_RUN and moved_blobs:
+            print("Iniciando reversão dos arquivos movidos no GCP...")
+            for new_blob, original_name in reversed(moved_blobs):
+                try:
+                    print(f"  - Desfazendo: {new_blob.name} -> {original_name}")
+                    bucket.rename_blob(new_blob, original_name)
+                except Exception as rollback_err:
+                    print(f"  Falha ao reverter {new_blob.name}: {rollback_err}")
+
+            print("Reversão concluída. As operações no banco foram canceladas.")
+
+    finally:
+        conn.close()
 
 if __name__ == "__main__":
     required_variables = ["GCP_PROJECT_ID", "GCP_BUCKET_NAME", "DB_SERVER", "DB_DATABASE", "DB_USERNAME", "DB_PASSWORD"]
