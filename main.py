@@ -53,10 +53,10 @@ def main():
 
     bucket = client.bucket(bucket_name)
 
-    print("Connecting to SQL Server...")
+    print("Connecting to DB...")
     conn = db_connection()
     cursor = conn.cursor()
-    print("Database connection successfully!\n")
+    print("DB connection successfully!\n")
 
     print("Loading database relations into memory... This may take a few seconds.")
     db_relations = load_all_db_relations(cursor)
@@ -113,8 +113,8 @@ def main():
                 print(f"[SIMULATION] Move: {blob.name}")
                 print(f"            -> To: {final_destination_name}\n")
             else:
-                print(f"[UPDATING] Moving: {blob.name}")
-                print(f"         -> To: {final_destination_name}")
+                # print(f"[UPDATING] Moving: {blob.name}")
+                # print(f"         -> To: {final_destination_name}")
 
                 # new_blob = bucket.rename_blob(blob, final_destination_name)
 
@@ -125,8 +125,6 @@ def main():
                 print(f"         [OK] Success.\n")
 
         if not DRY_RUN:
-            # Só faz o commit se o loop todo terminar sem erros
-            # conn.commit()
             print("Execução finalizada com sucesso. (Commit no banco de dados realizado)")
         else:
             print("Organization (Dry-Run) completed!")
