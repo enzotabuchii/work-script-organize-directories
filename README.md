@@ -1,17 +1,14 @@
-# Organização de Documentos GCP (Dry-Run)
+# Organização de Documentos GCP
 
-Este script tem como objetivo organizar arquivos "soltos" em um bucket do Google Cloud Storage, simulando a movimentação desses arquivos para pastas específicas baseadas no OID (Object Identifier) do usuário, consultando um banco de dados SQL Server.
-
-Por enquanto, o script roda apenas em modo **DRY-RUN**, ou seja, ele apenas imprime na tela o que faria, mas não move ou altera nenhum arquivo de verdade.
+Este script tem como objetivo organizar arquivos "soltos" em um bucket do Google Cloud Storage.
 
 ## Como Funciona
 
 1. O script se conecta ao bucket do GCP utilizando as credenciais definidas.
-2. Ele lista todos os arquivos ("blobs") que estão na raiz do prefixo informado (arquivos que não estão dentro de subpastas).
-3. Para cada arquivo encontrado, o script conecta ao banco de dados SQL Server e faz uma busca utilizando o nome do arquivo. A busca tenta encontrar a qual pessoa aquele arquivo pertence (buscando o `fk_reg_persons_oid` nas tabelas `reg_document_contents` e `reg_documents`).
-4. Se o banco de dados retornar o OID, o script gera um novo nome de arquivo adicionando um UUID (para garantir que o nome será único) e define que o novo caminho do arquivo será dentro de uma pasta nomeada com o OID (`prefixo/OID/novo_nome_arquivo`).
-5. Caso o arquivo não seja encontrado no banco, ele será ignorado na simulação.
-6. O script imprime na tela o "De" (caminho atual) e "Para" (novo caminho) de cada arquivo processado.
+2. Para cada arquivo encontrado, o script conecta ao banco de dados SQL Server e faz uma busca utilizando o nome do arquivo. A busca tenta encontrar a qual pessoa aquele arquivo pertence (buscando o `fk_reg_persons_oid` na tabela `reg_documents`).
+3. Se o banco de dados retornar o OID, o script gera um novo nome de arquivo adicionando um random byte (para garantir que o nome será único) e define que o novo caminho do arquivo será dentro de uma pasta nomeada com o OID (`prefixo/OID/arquivo_<random-byte>.ext`).
+4. Caso o arquivo não seja encontrado no banco, ele será ignorado.
+5. O script imprime na tela o "De" (caminho atual) e "Para" (novo caminho) de cada arquivo processado.
 
 ## Pré-requisitos
 
@@ -47,4 +44,12 @@ Basta rodar o arquivo principal através do Python:
 
 ```bash
 python main.py
+```
+
+Caso queira guardar os logs do terminal por ter muitos arquivos...
+
+Em linux:
+
+```bash
+python main.py | tee resp.txt
 ```
